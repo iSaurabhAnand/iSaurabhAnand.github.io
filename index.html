@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Repositories — iSaurabhAnand</title>
+  <style>
+    :root {
+      --bg: #fff;
+      --text: #0f172a;
+      --muted: #475569;
+      --card: #f8fbff;
+      --accent: #0b6efd;
+      --border: #e6eef8;
+      --radius: 8px;
+      --maxw: 900px;
+    }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: var(--text);
+      background: var(--bg);
+      margin: 32px auto;
+      padding: 0 16px;
+      max-width: var(--maxw);
+    }
+    header { margin-bottom: 12px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px 0; }
+    #info { color: var(--muted); margin-bottom: 14px; }
+    ul#repos { list-style: none; padding: 0; margin: 0; }
+    li.repo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    a.repo-link { color: var(--accent); font-weight: 600; text-decoration: none; }
+    p.desc { margin: 8px 0; color: var(--muted); }
+    div.meta { font-size: 0.9rem; color: var(--muted); }
+    .small { font-size: 0.9rem; color: var(--muted); }
+    .error { color: #b91c1c; }
+    footer { margin-top: 18px; color: var(--muted); font-size: 0.9rem; }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220;
+        --text: #e6eef8;
+        --muted: #94a3b8;
+        --card: #071022;
+        --accent: #58a6ff;
+        --border: #082033;
+      }
+      body { background: var(--bg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Repositories — iSaurabhAnand</h1>
+    <div id="info">Loading repositories…</div>
+  </header>
+
+  <main>
+    <ul id="repos" aria-live="polite"></ul>
+
+    <div id="note" class="small" style="margin-top:12px;">
+      This page uses the public GitHub API. If you see an empty result and your account is private or you hit the API rate limit, see the instructions below.
+    </div>
+  </main>
+
+  <footer>
+    Tip: To increase API rate limits, you can call the API with a personal access token in the Authorization header (not included by default).
+  </footer>
+
+  <script>
+    // Change the username below if needed
+    const username = 'iSaurabhAnand';
+    const perPage = 100; // increase if you have >100 repos (requires pagination)
+    const endpoint = `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=${perPage}&sort=updated&type=owner`;
+
+    // Optional: if you want to use a token, set it here (NOT recommended to hard-code in public pages).
+    // const GITHUB_TOKEN = ''; // <-- set a token only if you host privately
+    const GITHUB_TOKEN = '';
+
+    async function loadRepos() {
+      const info = document.getElementById('info');
+      const list = document.getElementById('repos');
+      info.textContent = 'Loading repositories…';
+
+      try {
+        const headers = { Accept: 'application/vnd.github.v3+json' };
+        if (GITHUB_TOKEN) headers.Authorization = 'token ' + GITHUB_TOKEN;
+
+        const res = await fetch(endpoint, { headers });
+        if (res.status === 404) {
+          info.innerHTML = '<span class="error">User not found (404).</span>';
+          return;
+        }
+        if (res.status === 403) {
+          // often rate-limited
+          const text = await res.text();
+          info.innerHTML = '<span class="error">API rate limit or access denied. Try again later or use a token.</span>';
+          console.error('GitHub API 403 response:', text);
+          return;
+        }
+        if (!res.ok) {
+          info.innerHTML = '<span class="error">Failed to fetch repositories: ' + res.status + ' ' + res.statusText + '</span>';
+          return;
+        }
+
+        const repos = await res.json();
+        if (!Array.isArray(repos) || repos.length === 0) {
+          info.textContent = 'No repositories found (or they may be private).';
+          return;
+        }
+
+        info.textContent = `Showing ${repos.length} repositories (most recently updated first).`;
+        // Clear list
+        list.innerHTML = '';
+
+        repos.forEach(r => {
+          const li = document.createElement('li');
+          li.className = 'repo';
+
+          const nameLink = document.createElement('a');
+          nameLink.className = 'repo-link';
+          nameLink.href = r.html_url;
+          nameLink.target = '_blank';
+          nameLink.rel = 'noopener noreferrer';
+          nameLink.textContent = r.name;
+
+          const header = document.createElement('div');
+          header.appendChild(nameLink);
+
+          const desc = document.createElement('p');
+          desc.className = 'desc';
+          desc.textContent = r.description || '';
+
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          meta.textContent = `⭐ ${r.stargazers_count} · Forks: ${r.forks_count} · ${r.language || '—'} · Updated: ${new Date(r.updated_at).toLocaleDateString()}`;
+
+          li.appendChild(header);
+          if (r.description) li.appendChild(desc);
+          li.appendChild(meta);
+
+          list.appendChild(li);
+        });
+      } catch (err) {
+        console.error(err);
+        info.innerHTML = '<span class="error">Unable to load repositories: ' + (err.message || err) + '</span>';
+      }
+    }
+
+    // Kick off
+    loadRepos();
+  </script>
+</body>
+</html>
